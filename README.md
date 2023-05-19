@@ -1,19 +1,21 @@
 # Serverless-project
 
-Overview And High Level Design
+## Overview And High Level Design
+
 Here I wanted to test a serverless API using API Gateway, Lambda, and DynamoDB.
 First, I created one resource (DynamoDBManager) and defined one method (POST) on it. The method is backed by a Lambda function (LambdaFunctionOverHttps). I did so for calling the API through an HTTPS endpoint; then Amazon API Gateway will invoke the Lambda function.
 
-The POST method on the DynamoDBManager resource supports the following DynamoDB operations:
+![Releases · saha-rajdeepserverless-lab 2023-05-19 at 11 03 23 a m](https://github.com/antoniopablo/serverless-project/assets/47349991/53e8a22f-de06-4005-b138-3656f04b6be1)
 
-Create, update, and delete an item.
-Read an item.
-Scan an item.
-Other operations (echo, ping), not related to DynamoDB, that can be used for testing.
+The POST method on the DynamoDBManager resource supports the following DynamoDB operations:
+- Create, update, and delete an item.
+- Read an item.
+- Scan an item.
+- Other operations (echo, ping), not related to DynamoDB, that can be used for testing.
 The request payload sent in the POST request identifies the DynamoDB operation and provides necessary data. For example:
 
 The following is a sample request payload for a DynamoDB create item operation:
-
+```json
 {
     "operation": "create",
     "tableName": "lambda-apigateway",
@@ -24,8 +26,9 @@ The following is a sample request payload for a DynamoDB create item operation:
         }
     }
 }
+```
 The following is a sample request payload for a DynamoDB read item operation:
-
+```json
 {
     "operation": "read",
     "tableName": "lambda-apigateway",
@@ -35,13 +38,16 @@ The following is a sample request payload for a DynamoDB read item operation:
         }
     }
 }
-Setup
+```
+### Setup
+#### Lambda IAM Role
 I created a Lambda IAM Role. Created the execution role that gives the function permission to access AWS resources.
 
 I created the execution role with the following properties.
 Trusted entity – Lambda.
 Role name – lambda-apigateway-role.
 Permissions – Custom policy with permission to DynamoDB and CloudWatch Logs. This custom policy has the permissions that the function needs to write data to DynamoDB and upload logs.
+```json
 {
 "Version": "2012-10-17",
 "Statement": [
@@ -70,13 +76,14 @@ Permissions – Custom policy with permission to DynamoDB and CloudWatch Logs. T
 }
 ]
 }
+```
+#### Lambda Function
 Then, I created the Lambda Function
 I selected "Author from scratch". Used name LambdaFunctionOverHttps , selected Python 3.7 as Runtime. Under Permissions, selected "Use an existing role", and selected lambda-apigateway-role that I created, from the drop down
 
 
 I replaced the boilerplate coding with the following code snippet.
-Python Code
-
+```python
 from __future__ import print_function
 
 import boto3
@@ -113,12 +120,12 @@ def lambda_handler(event, context):
         return operations[operation](event.get('payload'))
     else:
         raise ValueError('Unrecognized operation "{}"'.format(operation))
-Lambda Code
-
+```
 Then, I tested the Lambda Function
 As I haden't created DynamoDB and the API yet, I used a sample echo operation. The function should output whatever input I pass.
 
 The field "operation" dictates what the lambda function will perform. In this case, it'd simply return the payload from input event as output.
+```json
 {
     "operation": "echo",
     "payload": {
@@ -126,27 +133,32 @@ The field "operation" dictates what the lambda function will perform. In this ca
         "somekey2": "somevalue2"
     }
 }
-
+```
+#### DynamoDB Table
 At this point I created DynamoDB table and an API using the lambda as backend.
 
 DynamoDB Table
 I created the DynamoDB table that the Lambda function uses with the following settings.
-Table name – lambda-apigateway
-Primary key – id (string)
-
+- Table name – lambda-apigateway
+- Primary key – id (string)
+#### Create API
 Then, I create API selecting "Build" for REST API as "DynamoDBOperations".
 
-Each API is collection of resources and methods that are integrated with backend HTTP endpoints, Lambda functions, or other AWS services. Typically, API resources are organized in a resource tree according to the application logic.
-I created a resource ad "DynamoDBManager" in the Resource Name and a POST Method for the API. I selected "LambdaFunctionOverHttps" function that I created earlier. 
+Each API is collection of resources and methods that are integrated with backend HTTP endpoints, Lambda functions, or other AWS services. 
+
+Typically, API resources are organized in a resource tree according to the application logic.
+
+I created a resource ad "DynamoDBManager" in the Resource Name and a POST Method for the API and selected "LambdaFunctionOverHttps" function that I created earlier. 
 
 Now the API-Lambda integration is done!
-
-Lastly, the API deplying is need.
+#### Deploy API
+Lastly, the API deploying is need.
 
 Finally everything is set to run the solution! To invoke the API endpoint,the endpoint url is needed. 
 
 Running the solution
 The Lambda function supports using the create operation to create an item in the DynamoDB table. To request this operation, I used the following JSON:
+```json
 {
     "operation": "create",
     "tableName": "lambda-apigateway",
@@ -157,23 +169,31 @@ The Lambda function supports using the create operation to create an item in the
         }
     }
 }
+```
 To execute the API from local machine, I used Postman and Curl command.
+
+![Postman 2023-05-19 at 11 47 23 a m](https://github.com/antoniopablo/serverless-project/assets/47349991/312060da-031d-4e2c-8636-da750b326c5f)
+
 
 To run this from Postman, I selected "POST" , pasted the API invoke url. Then under "Body" selected "raw" and paste the above JSON. Click "Send". API executed and returned "HTTPStatusCode" 200.
 Execute from Postman
 
 To run this from terminal using Curl:
+```python
 $ curl -X POST -d "{\"operation\":\"create\",\"tableName\":\"lambda-apigateway\",\"payload\":{\"Item\":{\"id\":\"1\",\"name\":\"Bob\"}}}" https://$API.execute-api.$REGION.amazonaws.com/prod/DynamoDBManager
+```
 To validate that the item is indeed inserted into DynamoDB table, it can be seen in the Dynamo console.
 
-Dynamo Item
+![Items Amazon DynamoDB Management Console 2023-05-19 at 11 48 34 a m](https://github.com/antoniopablo/serverless-project/assets/47349991/8e8e8dbd-3804-4676-b2bd-addf6e2170f0)
 
 To get all the inserted items from the table, I used the "list" operation of Lambda using the same API.
+```json
 {
     "operation": "list",
     "tableName": "lambda-apigateway",
     "payload": {
     }
 }
+```
 
 Now, I have successfully created a serverless API using API Gateway, Lambda, and DynamoDB!
